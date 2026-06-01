@@ -42,16 +42,16 @@ __global__ void matrixMultiplyTiled(float *A, float *B, float *C, int N) {
         }
 
         __syncthreads();
+    }
 
-        if (Row < N && Col < N){
-            C[Row * N + Col] = Pvalue;
-        }
+    if (Row < N && Col < N){
+        C[Row * N + Col] = Pvalue;
     }
 }
 
 int main(int argc, char **argv) {
     // Setup Matrix Size
-    int N = (argc > 1) ? atoi(argv[1]) : 1024;  // Use command line argument or defaut to 1024
+    int N = (argc > 1) ? atoi(argv[1]) : 1024;  // Use command line argument or default to 1024
     size_t size = N * N * sizeof(float);
     printf("Matrix Size N = %d (Optimized Tiled CUDA)\n", N);
 
@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
     float *h_B = (float *)malloc(size);
     float *h_C = (float *)malloc(size);
 
-    // Initialize matrics with random values
+    // Initialize matrices with random values
     // Use the same logic as the CPU version for consistency
     for (int i = 0; i < N * N; i++) {
         h_A[i] = rand() % 100 / 100.0f;
@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
     cudaMemcpy(d_B, h_B, size, cudaMemcpyHostToDevice);
 
     // Configure Kernel Launch Parameters
-    // Block size: 32x32 threads
+    // Block size: 16x16 threads
     dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
     // Grid size: Calculate number of blocks needed to cover N
     dim3 dimGrid((N + TILE_WIDTH - 1) / TILE_WIDTH, (N + TILE_WIDTH - 1) / TILE_WIDTH);

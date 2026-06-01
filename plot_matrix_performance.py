@@ -1,29 +1,22 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import numpy as np
-import os
+from pathlib import Path
 
-# 1. Load the CSV file
-csv_file = "final_comparison.csv"
+ROOT_DIR = Path(__file__).resolve().parent
+RESULTS_DIR = ROOT_DIR / "results"
+csv_file = RESULTS_DIR / "final_comparison.csv"
 
-# Check if the file exists. If not, create dummy data for testing purposes.
-if not os.path.exists(csv_file):
-    print(f"⚠️ {csv_file} not found. Creating dummy data...")
-    data = {
-        "Implementation": ["CPU", "Naïve GPU", "Optimized", "cuBLAS"],
-        "N=1024": [1.2, 0.05, 0.04, 0.005],
-        "N=2048": [9.6, 0.25, 0.15, 0.02],
-        "N=4096": [76.8, 1.5, 0.8, 0.1]
-    }
-    df = pd.DataFrame(data)
-else:
-    df = pd.read_csv(csv_file)
+if not csv_file.exists():
+    raise FileNotFoundError(
+        f"{csv_file} not found. Run `python collect_results.py` before plotting."
+    )
+
+df = pd.read_csv(csv_file)
 
 # 2. Data Cleaning and Preparation
 # Extract column names like "N=1024" and convert them to integers [1024, 2048, ...]
 cols = [c for c in df.columns if "N=" in c]
 x_labels = [int(c.replace("N=", "")) for c in cols]
-implementations = df["Implementation"].values
 
 # Prepare a dictionary for plotting: { "CPU": [time1, time2...], ... }
 plot_data = {}
@@ -59,8 +52,11 @@ plt.yscale('log') # CRITICAL: Use log scale to visualize large differences
 plt.xticks(x_labels, x_labels)
 plt.legend(fontsize=12)
 plt.grid(True, which="both", ls="-", alpha=0.5)
-plt.savefig("plot_log_scale.png")
-print("Saved plot_log_scale.png (Best for overall comparison)")
+RESULTS_DIR.mkdir(exist_ok=True)
+log_plot = RESULTS_DIR / "plot_log_scale.png"
+plt.savefig(log_plot, dpi=160, bbox_inches="tight")
+print(f"Saved {log_plot} (best for overall comparison)")
+plt.close()
 
 # --- Plot 2: GPU Only (Linear Scale for analyzing GPU optimizations) ---
 plt.figure(figsize=(10, 6))
@@ -77,7 +73,7 @@ plt.ylabel("Execution Time (seconds)", fontsize=14)
 plt.xticks(x_labels, x_labels)
 plt.legend(fontsize=12)
 plt.grid(True, alpha=0.5)
-plt.savefig("plot_gpu_only.png")
-print("Saved plot_gpu_only.png (Best for analyzing CUDA optimizations)")
-
-plt.show()
+gpu_plot = RESULTS_DIR / "plot_gpu_only.png"
+plt.savefig(gpu_plot, dpi=160, bbox_inches="tight")
+print(f"Saved {gpu_plot} (best for analyzing CUDA optimizations)")
+plt.close()

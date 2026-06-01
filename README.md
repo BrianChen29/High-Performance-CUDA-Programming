@@ -1,97 +1,119 @@
-# High-Performance-CUDA-Programming
-DSCI560 - Extra credit - Lab11
+# CUDA Acceleration Primitives
 
-Lab 11: High-Performance CUDA Programming
+CUDA C++ implementations of core acceleration patterns used in machine learning and image-processing workloads: matrix multiplication, shared-memory tiling, cuBLAS benchmarking, and Python-callable GPU convolution.
 
-Course: High Performance Computing
-Environment: Google Colab (NVIDIA Tesla T4 GPU)
+This repository is positioned as an AI/MLE systems portfolio project. The goal is to show that I can reason about GPU kernels, benchmark boundaries, and Python/CUDA integration rather than only call high-level ML libraries.
 
-## Project Overview
+## Highlights
 
-This laboratory explores high-performance parallel computing techniques using NVIDIA CUDA through the implementation of Matrix Multiplication and Image Convolution. The experiment consists of four main parts:
+- Implemented CPU, naive CUDA, shared-memory tiled CUDA, and cuBLAS matrix multiplication benchmarks.
+- Built a Python-callable CUDA shared library with `ctypes` for 2D convolution and Sobel edge detection.
+- Compared custom kernels against CPU baselines and NVIDIA library primitives on an NVIDIA Tesla T4 environment.
+- Added reproducible scripts for collecting benchmark CSVs and regenerating plots.
 
-1. CPU Baseline: Implementation of $O(N^3)$ matrix multiplication using C.
-2. CUDA Acceleration: Implementation of a Naïve kernel and an Optimized kernel using Shared Memory Tiling.
-3. cuBLAS Comparison: Performance comparison against NVIDIA's highly optimized linear algebra library.
-4. Python Integration: Creation of a CUDA Shared Library (.so) and calling GPU functions via Python ctypes for high-performance Image Edge Detection.
+## Why This Matters for AI/MLE Work
 
-## File Structure
+Modern ML systems often bottleneck on tensor operations, preprocessing, feature extraction, and data movement. This project demonstrates lower-level skills that are useful when profiling inference pipelines, writing custom CUDA extensions, evaluating GPU utilization, or deciding when to use vendor libraries such as cuBLAS instead of maintaining a custom kernel.
 
-1. Matrix Multiplication
-   * `matrix_cpu.c`: CPU implementation (Baseline).
-   * `matrix_gpu.cu`: Basic CUDA implementation (Naïve Kernel).
-   * `matrix_gpu_optimized.cu`: Optimized CUDA implementation (Shared Memory Tiling).
-   * `matrix_cublas.cu`: Implementation using the NVIDIA cuBLAS library.
-   * `collect_results.py`: Automated compilation and testing script (generates final_comparison.csv).
-   * `plot_matrix_performance.py`: Python script to read the CSV and generate performance plots (Log Scale & GPU Linear Scale).
+## Repository Structure
 
-2. Image Convolution
-   * `convolution_lib.cu`: Source code containing the CUDA Kernel and C-Interface, used to compile the Shared Library.
-   * `convolution_standalone.cu`: Standalone CUDA executable (used to benchmark Python overhead).
-   * `test_convolution_final.py`: Main Python script responsible for downloading the test image, creating a large Mosaic, calling GPU/CPU for edge detection, and comparing performance.
-
-## Compilation & Execution Guide
-
-Due to the environment constraints of Google Colab, all CUDA compilation commands must include -arch=sm_75 to support the Tesla T4 architecture.
-
-### Part A: Matrix Multiplication Performance Analysis
-1. Automated Testing
-
-Run the following Python script to automatically compile all C/CUDA programs, execute tests for matrix sizes $N=1024, 2048, 4096$, and collect data.
-
-```python collect_results.py```
-
-* Output: final_comparison.csv
-
-
-2. Plotting Graphs
-```python plot_matrix_performance.py```
-
-* Output:
-    * plot_log_scale.png (CPU vs. GPU comparison)
-    * plot_gpu_only.png (Comparison between CUDA versions)
-
-### Part B: Image Convolution (Python + CUDA)
-
-1. Compile the Shared Library
-```bash
-nvcc -arch=sm_75 -Xcompiler -fPIC -shared convolution_lib.cu -o libconvolution.so
+```text
+.
+|-- collect_results.py              # Compiles/runs matrix benchmarks and writes results/final_comparison.csv
+|-- plot_matrix_performance.py      # Generates benchmark plots from results/final_comparison.csv
+|-- CUDA_Acceleration_Primitives.ipynb  # Colab verification notebook
+|-- matrix_gpu.cu                   # Naive CUDA matrix multiplication
+|-- matrix_gpu_optimized.cu         # Shared-memory tiled CUDA matrix multiplication
+|-- matrix_cublas.cu                # cuBLAS SGEMM benchmark
+|-- matrix_lib.cu                   # Python-callable CUDA matrix multiplication library
+|-- test_lib.py                     # ctypes smoke test for libmatrix.so
+|-- cpu/
+|   |-- matrix_cpu.c                # CPU O(N^3) baseline
+|   `-- result.csv                  # CPU-only timing reference
+|-- convolution/
+|   |-- convolution_lib.cu          # CUDA convolution kernel + C ABI wrapper
+|   |-- convolution_standalone.cu   # Standalone CUDA convolution benchmark
+|   |-- test_convolution.py         # Python ctypes benchmark and visualization
+|   `-- results/                    # Convolution output images
+`-- results/                        # Matrix benchmark CSV and plots
 ```
 
-Note: If you update the .so file in Colab, you must perform a "Restart Session" to clear the Python cache.
+## Results
 
-2. Run Python Visualization & Performance Test
-This script automatically downloads the test image (Taj Mahal), creates a large Mosaic tiling, and performs Sobel Edge Detection.
+### Matrix Multiplication
+
+Benchmarked on Google Colab with an NVIDIA Tesla T4 GPU. GPU timings are measured with CUDA events around the kernel or cuBLAS call only; host-device transfers and allocation are intentionally excluded for this compute-kernel comparison. CPU timings measure the baseline CPU compute loop.
+
+| Implementation | N=256 | N=512 | N=1024 | N=2048 | N=4096 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| CPU | 0.019891s | 0.224031s | 3.280722s | 88.443179s | Timeout |
+| Naive GPU | 0.008071s | 0.007691s | 0.007581s | 0.007705s | 0.010922s |
+| Optimized Tiled CUDA | 0.011163s | 0.011361s | 0.010567s | 0.010849s | 0.007325s |
+| cuBLAS | 0.014966s | 0.005545s | 0.006221s | 0.011343s | 0.052835s |
+
+![Matrix multiplication benchmark on log scale](results/plot_log_scale.png)
+
+![GPU-only matrix benchmark comparison](results/plot_gpu_only.png)
+
+### CUDA Convolution from Python
+
+The convolution module exposes C ABI functions from CUDA C++ and calls them from Python with `ctypes`. The benchmark uses a Sobel 3x3 edge filter while varying image size, then uses 5x5 and 7x7 box filters to test larger stencil workloads.
+
+![CUDA Sobel edge detection comparison](convolution/results/edge_detection_result.png)
+
+## Reproduce the Benchmarks
+
+### Requirements
+
+- NVIDIA GPU with CUDA toolkit and `nvcc`
+- Python 3.9+
+- Python packages: `numpy`, `pandas`, `matplotlib`
+- Optional for the original environment: Google Colab T4 GPU
+
+For a notebook-based run, open `CUDA_Acceleration_Primitives.ipynb` in Colab with a GPU runtime. The notebook follows the same commands below and is meant as a reproducible project demo rather than a course lab handout.
+
+The scripts default to `sm_75` for Tesla T4. To target another GPU, set `CUDA_ARCH`:
 
 ```bash
-python test_convolution_final.py
+CUDA_ARCH=sm_86 python collect_results.py
 ```
 
-* Output:
-  * `convolution_output_demo.png` (Edge detection result image)
-  * Console output showing execution times and Speedup ratio for CPU and GPU.
-
-3. (Optional) Run Standalone CUDA Version
-Used to compare the execution efficiency between "Python + CUDA" and "Pure C++ CUDA".
+### Matrix Multiplication
 
 ```bash
-nvcc -arch=sm_75 convolution_standalone.cu -o convolution_standalone
-./convolution_standalone
+python collect_results.py
+python plot_matrix_performance.py
 ```
 
-## Expected Results
+Outputs:
 
-1. Matrix Multiplication:
-   * As $N$ increases, CPU time grows exponentially ($O(N^3)$), while GPU time grows much more slowly.
-   * Performance Ranking: cuBLAS > Optimized CUDA > Naïve CUDA >>> CPU.
-   * At $N=4096$, cuBLAS is approximately 5x-10x faster than the hand-written optimized version.
+- `results/final_comparison.csv`
+- `results/plot_log_scale.png`
+- `results/plot_gpu_only.png`
 
-2. Image Convolution:
-   * When processing large mosaic images (e.g., 4000x2665), the GPU version achieves a 20x ~ 50x speedup.
-   * The overhead of the Python Interface is negligible (minimal difference compared to the Standalone version).
+### Python + CUDA Convolution
 
-## Notes
+```bash
+nvcc -arch=sm_75 -Xcompiler -fPIC -shared convolution/convolution_lib.cu -o convolution/libconvolution.so
+python convolution/test_convolution.py
+```
 
-* Environment: This project is designed for Google Colab (Runtime: T4 GPU).
-* Toolchain Error: If you encounter an unsupported toolchain error, ensure the compilation command includes -arch=sm_75.
-* Black Image Output: If the Python execution results in a black image, ensure the Numpy array has been processed with np.ascontiguousarray() to ensure contiguous memory layout, and try restarting the Runtime.
+Outputs:
+
+- `convolution/results/edge_detection_result.png`
+- `convolution/results/convolution_output_demo.png`
+- `convolution/results/comparison.png`
+
+Optional standalone benchmark:
+
+```bash
+nvcc -arch=sm_75 convolution/convolution_standalone.cu -o convolution/convolution_standalone
+./convolution/convolution_standalone
+```
+
+## Implementation Notes
+
+- The optimized matrix kernel uses 16x16 shared-memory tiles to reduce repeated global memory reads.
+- The cuBLAS benchmark is included as a vendor-library reference point, which is usually the right production choice for dense linear algebra.
+- The convolution wrapper currently allocates/copies/frees GPU memory inside each Python call, so its timing is closer to an end-to-end Python integration benchmark than the matrix kernel-only timing.
+- For interview discussion, the next natural optimizations would be CUDA error-checking macros, pinned host memory, persistent device buffers for repeated convolution calls, correctness checks against NumPy, and Tensor Core or WMMA experiments for matrix multiplication.

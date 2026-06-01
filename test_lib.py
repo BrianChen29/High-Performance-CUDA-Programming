@@ -1,9 +1,11 @@
 import ctypes
 import numpy as np
 import time
+from pathlib import Path
 
 # 1. Load the shared library
-lib = ctypes.cdll.LoadLibrary("./libmatrix.so")
+LIB_PATH = Path(__file__).resolve().parent / "libmatrix.so"
+lib = ctypes.cdll.LoadLibrary(str(LIB_PATH))
 
 # 2. Define the argument types for the C function
 # void gpu_matrix_multiply(float *A, float *B, float *C, int N)

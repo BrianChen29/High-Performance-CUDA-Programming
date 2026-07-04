@@ -42,14 +42,16 @@ Modern ML systems often bottleneck on tensor operations, preprocessing, feature 
 
 ### Matrix Multiplication
 
-Benchmarked on Google Colab with an NVIDIA Tesla T4 GPU. GPU timings are measured with CUDA events around the kernel or cuBLAS call only; host-device transfers and allocation are intentionally excluded for this compute-kernel comparison. CPU timings measure the baseline CPU compute loop.
+Benchmarked on Google Colab with an NVIDIA Tesla T4 GPU. GPU timings are measured with CUDA events around the kernel or cuBLAS call only (allocation and the first context-initializing call happen before the timed window); host-device transfers are intentionally excluded for this compute-kernel comparison. CPU timings measure the baseline CPU compute loop. Numbers below are the current `results/final_comparison.csv` (also the source of the plots).
 
 | Implementation | N=256 | N=512 | N=1024 | N=2048 | N=4096 |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| CPU | 0.019891s | 0.224031s | 3.280722s | 88.443179s | Timeout |
-| Naive GPU | 0.008071s | 0.007691s | 0.007581s | 0.007705s | 0.010922s |
-| Optimized Tiled CUDA | 0.011163s | 0.011361s | 0.010567s | 0.010849s | 0.007325s |
-| cuBLAS | 0.014966s | 0.005545s | 0.006221s | 0.011343s | 0.052835s |
+| CPU | 0.021160s | 0.314571s | 3.503723s | 75.699278s | Timeout |
+| Naive GPU | 0.000264s | 0.000592s | 0.004152s | 0.032821s | 0.262257s |
+| Optimized Tiled CUDA | 0.000146s | 0.000342s | 0.002369s | 0.018067s | 0.194119s |
+| cuBLAS | 0.052196s | 0.006267s | 0.006413s | 0.008388s | 0.037842s |
+
+At scale the ranking is the expected one: **cuBLAS < optimized tiled < naive <<< CPU**. The naive kernel scales roughly as O(N³) (2048→4096 is ~8×), the tiled kernel is ~1.35–1.8× faster than naive at every size, and cuBLAS dominates at large N. **Known measurement caveats:** these are single-run timings with no warmup and no averaging, so the small-N points are noisy — the cuBLAS N=256 outlier (0.052s) is a one-time library-initialization cost landing inside the timed window, not a real compute result. The matmul results are also not yet asserted against a NumPy/CPU reference (the tiled `main` comments out the device→host copy), so correctness is visually plausible but unverified. See the fix (warmup + averaged iterations + correctness check) in `not-gonna-used/matrix_benchmark_fixed.cu`.
 
 ![Matrix multiplication benchmark on log scale](results/plot_log_scale.png)
 

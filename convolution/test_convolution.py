@@ -36,7 +36,7 @@ def get_test_image():
     Downloads and prepares a test image (Taj Mahal).
     Returns a normalized grayscale NumPy array (float32).
     """
-    img_url = "https://upload.wikimedia.org/wikipedia/commons/thumb/d/da/Taj-Mahal.jpg/800px-Taj-Mahal.jpg"
+    img_url = "https://upload.wikimedia.org/wikipedia/commons/thumb/d/da/Taj-Mahal.jpg/960px-Taj-Mahal.jpg"
     image_path = SCRIPT_DIR / "test_image.jpg"
 
     if not image_path.exists():
